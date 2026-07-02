@@ -48,10 +48,10 @@ The module implements the following recognition pipeline:
                  │
                  ▼
      Google Speech Recognition
-          │              │
-        Success             Failure
-          │                   │
-          ▼                   ▼
+          │                  │
+        Success            Failure
+          │                  │
+          ▼                  ▼
     Return Text      CMU Sphinx Recognition
                          │
                   ┌──────┴──────┐
