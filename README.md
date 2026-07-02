@@ -9,7 +9,7 @@ This module provides a comprehensive speech recognition solution that attempts t
 ## Prerequisites
 
 Before installing this module, ensure you have:
-- Python 3.7 or higher
+- Python 3.10 or higher
 - A working microphone connected to your system
 - Audio libraries installed on your system (varies by OS)
 
@@ -65,9 +65,6 @@ The module implements the following recognition pipeline:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 
 
