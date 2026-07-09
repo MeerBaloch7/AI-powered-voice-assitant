@@ -3,17 +3,18 @@
 
 # 1. Speech Recognition Module
 
-A Python-based Speech-to-Text (STT) conversion module that leverages multiple recognition engines for robust audio transcription capabilities.
+A Python-based Speech-to-Text (STT) conversion module that leverages local audio capture and Whisper transcription for reliable speech recognition.
 
 ## Overview
 
-This module provides a comprehensive speech recognition solution that attempts transcription using Google's Speech Recognition API with fallback support to CMU Sphinx for offline functionality. It's designed to handle ambient noise and deliver reliable text conversion from audio input.
+This module captures microphone audio using `SpeechRecognition` and transcribes it with OpenAI's Whisper `base.en` model. The implementation converts raw audio data into NumPy arrays, then uses Whisper to produce text output without relying on Google Cloud or CMU Sphinx.
 
 ## Prerequisites
 
 Before installing this module, ensure you have:
 - Python 3.10 or higher
 - A working microphone connected to your system
+- `ffmpeg` installed on your system (required by Whisper)
 - Audio libraries installed on your system (varies by OS)
 
 ## Installation
@@ -30,7 +31,8 @@ On Windows: venv\Scripts\activate
 ```bash
 pip install SpeechRecognition
 pip install PyAudio
-pip install pocketsphinx
+pip install numpy
+pip install openai-whisper
 pip install pyttsx3
 ```
 
@@ -51,21 +53,14 @@ The module implements the following recognition pipeline:
           Capture Audio Input
                  │
                  ▼
-     Google Speech Recognition
-          │                  │
-        Success            Failure
-          │                  │
-          ▼                  ▼
-    Return Text      CMU Sphinx Recognition
-                         │
-                  ┌──────┴──────┐
-               Success       Failure
-                  │              │
-                  ▼              ▼
-           Return Text     Return Error
+        Convert to NumPy Array
+                 │
+                 ▼
+         Whisper Transcript
+                 │
+                 ▼
+             Return Text
 ```
-
-
 
 ---
 # 2. Natural Language Processing Module (NLPM)
