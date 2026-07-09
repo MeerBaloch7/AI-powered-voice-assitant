@@ -1,12 +1,13 @@
 import speech_recognition as sr
-
-
+import whisper
+import numpy as np
 
 # speech recognition module 
 
 class SpeechRecognitionModule:
     def __init__(self):
         self.recognizer = sr.Recognizer()
+        self.model = whisper.load_model('base.en')
 
     def recognize_speech(self):
         try:
@@ -22,12 +23,39 @@ class SpeechRecognitionModule:
 
             return None
 
+        return self.TranscribeAudio(audio)
 
-        # google api recognition
+
+    def TranscribeAudio(self, audio):
+        try:
+            raw = audio.get_raw_data()
+
+            # converting it into numpy arrays
+
+            audio_np = np.frombuffer(raw, dtype = np.int16)
+
+            # converting into 32 bit
+            audio_np = audio_np.astype(np.float32) / 32768
+
+            result = self.model.transcribe(audio_np, language ='en' , fp16 = False)
+
+            text = result['text'].strip()
+
+            print(" recognized text:", text)
+
+            return text
+        except Exception as e:
+            print("whisper error", e)
+            return None
+
+
+
+
+''' # google api recognition
 
         try:
             print(" speech recognition started wait....")
-            text = self.recognizer.recognize_google(audio)
+            #text = self.recognizer.recognize_google(audio)
             print("recognized: \n", text)
 
             return text
@@ -36,10 +64,11 @@ class SpeechRecognitionModule:
             print(" google could not understand the speech")
         except sr.RequestError:
             print(" internet unavailable")
+            '''
 
 
 
-# CMU Sphinx recognization
+'''# CMU Sphinx recognization
 
         try: 
             print (" trying offline recognition ")
@@ -52,6 +81,8 @@ class SpeechRecognitionModule:
             print("sphinx Error:", e)
 
         print("Speech Recognition failed......")
+'''
+
 
 
 
