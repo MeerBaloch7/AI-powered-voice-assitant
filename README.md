@@ -1,4 +1,4 @@
-# AI voice assistant
+# AI Powered Voice Assistant
 
 
 # 1. Speech Recognition Module
