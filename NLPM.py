@@ -1,27 +1,26 @@
-import re
 from typing import Literal
 
-Intent = Literal["open_notepad", "search_google", "unknown_command"]
+from commands import plugins
+
+Intent = Literal[
+    "open_notepad", "search_google", "open_calculator",
+    "open_explorer", "volume_control", "screenshot",
+    "lock_pc", "open_website", "get_weather",
+    "set_timer", "create_note", "clipboard_actions",
+    "unknown_command",
+]
+
 
 class NaturalLanguageProcessingModule:
-    """
-    Rule-based intent recognizer (Algorithm II).
-    """
-
-    OPEN_NOTEPAD_RE = re.compile(r"\b(open|start)\s+(notepad)\b", re.IGNORECASE)
-    SEARCH_GOOGLE_RE = re.compile(r"\b(google\s+search|search)\b", re.IGNORECASE)
-
-    def recognize_intent(self, command: str) -> Intent:
+    def recognize_intent(self, command: str) -> str:
         if not command or not command.strip():
             return "unknown_command"
 
         cmd = command.lower().strip()
 
-        if self.OPEN_NOTEPAD_RE.search(cmd):
-            return "open_notepad"
-
-        if self.SEARCH_GOOGLE_RE.search(cmd):
-            return "search_google"
+        for intent, plugin in plugins.items():
+            for pattern in plugin.patterns:
+                if pattern in cmd:
+                    return intent
 
         return "unknown_command"
-

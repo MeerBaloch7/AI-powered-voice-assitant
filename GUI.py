@@ -3,6 +3,7 @@ from tkinter import messagebox
 
 from NLPM import NaturalLanguageProcessingModule
 from CEM import CommandExecutionModule
+from commands import plugins
 
 
 class GraphicalUserInterface:
@@ -37,11 +38,12 @@ class GraphicalUserInterface:
             return
 
         intent = self.nlpm.recognize_intent(command)
-        query = command if intent == "search_google" else None
-        success = self.cem.execute(intent, query)
+        success = self.cem.execute(intent, command)
 
         if success:
-            message = f"Recognized intent: {intent}\nAction executed successfully."
+            plugin = plugins.get(intent)
+            label = plugin.name if plugin else intent
+            message = f"Recognized: {label}\nAction executed successfully."
         else:
             message = f"Recognized intent: {intent}\nThe command could not be completed."
 

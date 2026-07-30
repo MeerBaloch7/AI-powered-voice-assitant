@@ -7,18 +7,17 @@ from NLPM import NaturalLanguageProcessingModule
 from CEM import CommandExecutionModule
 from TTS import TextToSpeechModule
 from GUI import GraphicalUserInterface
+from commands import plugins
 
 
 def process_command(command: str, nlpm: NaturalLanguageProcessingModule, cem: CommandExecutionModule, tts: TextToSpeechModule):
     intent = nlpm.recognize_intent(command)
-    query = command if intent == "search_google" else None
-    success = cem.execute(intent, query)
+    success = cem.execute(intent, command)
 
     if success:
-        if intent == "open_notepad":
-            tts.speak("Opening Notepad.")
-        elif intent == "search_google":
-            tts.speak(f"Searching Google for {command}.")
+        plugin = plugins.get(intent)
+        if plugin:
+            tts.speak(f"{plugin.name}.")
         else:
             tts.speak("Command executed successfully.")
     else:
