@@ -5,43 +5,50 @@ Purpose
 
 Quick facts
 - **Python:** 3.10+
-- **Main entry:** `SRM.py` — contains `SpeechRecognitionModule` with `recognize_speech()`.
-- **Dependencies:** See README.md; primary packages: `SpeechRecognition`, `PyAudio`, `pocketsphinx`.
+- **Main entry:** `main.py` — entry point with `--mode` and `--trigger` arguments.
+- **Plugin system:** `commands/` folder — each file is a self-contained plugin auto-discovered at import.
+- **Smart listening:** `smart_listener.py` — state machine with wake word (Porcupine) and/or push-to-talk hotkey (Ctrl+Shift+V).
+- **Config:** `config.json` loaded by `config.py` — `Config` dataclass with env var overrides.
+- **Conversation context:** `conversation_context.py` — stores recent turns for follow-up intent resolution.
 
 How to run (local, interactive)
-- Create and activate a virtual environment, then install dependencies from README.md.
-
-Example (Windows)
-```
+```bash
 python -m venv venv
 venv\Scripts\activate
-pip install SpeechRecognition PyAudio pocketsphinx
-python SRM.py
+pip install -r requirements.txt
+python main.py                          # integrated mode (GUI + voice)
+python main.py --mode voice             # voice-only
+python main.py --mode gui               # GUI-only
+python main.py --trigger hotkey         # use push-to-talk instead of wake word
 ```
 
-What agents should do first
-- Read [README.md](README.md) for project overview and installation notes.
-- Open [SRM.py](SRM.py) to inspect the `SpeechRecognitionModule` implementation.
-- Do not assume tests or CI exist; ask to add them if needed.
+Modules overview
+- `SRM.py` — `SpeechRecognitionModule`: captures mic audio with `SpeechRecognition`, transcribes with Whisper `base.en`.
+- `NLPM.py` — `NaturalLanguageProcessingModule`: iterates plugin patterns to match intent; two-pass with context follow-up.
+- `CEM.py` — `CommandExecutionModule`: dispatches intent to the matching plugin; reads `plugin.context_data` to update conversation history.
+- `TTS.py` — `TextToSpeechModule`: offline speech synthesis via `pyttsx3`; configurable voice/rate/volume.
+- `GUI.py` — `GraphicalUserInterface`: Tkinter window for text command input.
+- `smart_listener.py` — `SmartListener`: IDLE → RECORDING → PROCESSING state machine; supports wake word + hotkey.
+- `config.py` — `Config.load()` reads `config.json` + `PICOVOICE_ACCESS_KEY` env var.
+- `conversation_context.py` — `ConversationContext`: stores last 5 turns; plugins can store arbitrary data per turn.
+- `commands/` — plugin directory; each file inherits `BasePlugin` with `name`, `intent`, `patterns`, `execute()`.
 
 Important implementation notes
-- `SRM.py` uses the system microphone and external services (Google, Sphinx). Expect environment-specific issues:
-  - On Windows, installing `PyAudio` often requires prebuilt wheels; advise the user if pip install fails.
-  - Microphone permissions and availability may cause `OSError` — handle gracefully and surface actionable errors.
-- Prefer non-blocking edits: add config flags for timeouts, API keys, and an option to read from an audio file for testing.
-- Avoid committing large binary audio files to the repo; use fixtures under a dedicated `tests/fixtures` folder if needed.
+- **Wake word** requires `PICOVOICE_ACCESS_KEY` env var (free at https://console.picovoice.ai/), set in `config.json` or env.
+- **Hotkey** (Ctrl+Shift+V) works without any API key; configurable via config.json.
+- `keyboard` and `pvporcupine` are optional imports — missing them falls back gracefully.
+- Porcupine reads mic frames in a separate thread; its audio stream pauses during RECORDING state to avoid conflict with SRM's microphone access.
+- `SRM.py` has two methods: `capture_audio()` returns raw audio, `transcribe(audio)` returns text.
+- `BasePlugin` subclasses can override `follow_up_patterns` for context-aware follow-up commands.
+- After `plugin.execute()`, CEM reads `plugin.context_data` dict and stores it in `ConversationContext`.
 
-Testing guidance for agents
-- Unit-test logic that doesn't require live audio (parsing, fallback decision, error handling).
+Testing guidance
+- Unit-test logic that doesn't require live audio (plugin loading, intent matching, `smart_listener` state transitions, config loading, context management).
 - For audio input, add small sample WAV files and tests that use `Recognizer.record()` on files instead of `Microphone`.
-
-Suggested next customizations
-- Add `requirements.txt` or `pyproject.toml` listing exact dependency versions.
-- Add a small `tests/` suite and CI workflow that runs unit tests without requiring a microphone.
-- Consider a `.github/copilot-instructions.md` only if you want a separate GitHub-specific agent instruction file.
+- Mock `pvporcupine` and `keyboard` in tests to avoid hardware dependency.
 
 Contacts / Context
-- The README contains detailed installation steps and architectural notes: [README.md](README.md).
+- README contains detailed installation steps and architectural notes: [README.md](README.md).
 
 Revision history
-- Created AGENTS.md to provide concise, link-first guidance for AI coding agents.
+- Updated to reflect plugin architecture, smart listening, config, and conversation context.

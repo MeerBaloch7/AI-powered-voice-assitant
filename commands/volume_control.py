@@ -1,4 +1,6 @@
+import os
 import re
+
 from .base_plugin import BasePlugin
 
 
@@ -18,9 +20,6 @@ class VolumeControlPlugin(BasePlugin):
             print("Volume control is only supported on Windows in this implementation.")
             return False
 
-        import pycaw.pycaw
-        from pycaw.api.endpoint import AudioEndpoint
-
         if "mute" in cmd:
             self._set_mute(True)
             return True
@@ -39,36 +38,20 @@ class VolumeControlPlugin(BasePlugin):
 
         return True
 
-    def _set_volume(self, level: float):
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        from ctypes import cast, POINTER
-        from comtypes import CLSCTX_ALL
+    def _get_volume_interface(self):
+        from pycaw.pycaw import AudioUtilities
+        device = AudioUtilities.GetSpeakers()
+        return device.EndpointVolume
 
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
+    def _set_volume(self, level: float):
+        volume = self._get_volume_interface()
         volume.SetMasterVolumeLevelScalar(max(0.0, min(1.0, level)), None)
 
     def _change_volume(self, delta: float):
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        from ctypes import cast, POINTER
-        from comtypes import CLSCTX_ALL
-
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        volume = self._get_volume_interface()
         current = volume.GetMasterVolumeLevelScalar()
         self._set_volume(current + delta)
 
     def _set_mute(self, muted: bool):
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        from ctypes import cast, POINTER
-        from comtypes import CLSCTX_ALL
-
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        volume = self._get_volume_interface()
         volume.SetMute(int(muted), None)
-
-
-import os

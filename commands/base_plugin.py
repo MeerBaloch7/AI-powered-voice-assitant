@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 
 
 class BasePlugin(ABC):
+    def __init__(self):
+        self.context_data: dict = {}
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -16,6 +19,10 @@ class BasePlugin(ABC):
     @abstractmethod
     def patterns(self) -> list[str]:
         ...
+
+    @property
+    def follow_up_patterns(self) -> list[str]:
+        return []
 
     @abstractmethod
     def execute(self, command: str) -> bool:

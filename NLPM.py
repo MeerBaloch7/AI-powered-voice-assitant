@@ -1,6 +1,7 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from commands import plugins
+from conversation_context import ConversationContext
 
 Intent = Literal[
     "open_notepad", "search_google", "open_calculator",
@@ -12,7 +13,7 @@ Intent = Literal[
 
 
 class NaturalLanguageProcessingModule:
-    def recognize_intent(self, command: str) -> str:
+    def recognize_intent(self, command: str, context:ConversationContext | None = None) -> str:
         if not command or not command.strip():
             return "unknown_command"
 

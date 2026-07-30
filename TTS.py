@@ -28,9 +28,14 @@ class TextToSpeechModule:
         if not text or not text.strip():
             return False
 
-        self.engine.say(text.strip())
-        self.engine.runAndWait()
-        return True
+        try:
+            self.engine.say(text.strip())
+            self.engine.runAndWait()
+            return True
+        except Exception as e:
+            print(f"[TTS Error] Could not speak: {e}")
+            print(f"[Text Output] {text.strip()}")
+            return False
 
 
 if __name__ == "__main__":

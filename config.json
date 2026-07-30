@@ -1,0 +1,12 @@
+{
+  "picovoice_access_key": "",
+  "trigger": {
+    "mode": "both",
+    "hotkey": "ctrl+shift+v"
+  },
+  "tts": {
+    "voice": null,
+    "rate": 200,
+    "volume": 1.0
+  }
+}
