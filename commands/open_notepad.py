@@ -1,5 +1,10 @@
+import logging
 import os
+
+from ._utils import launch_windows_app
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class OpenNotepadPlugin(BasePlugin):
@@ -9,8 +14,7 @@ class OpenNotepadPlugin(BasePlugin):
 
     def execute(self, command: str) -> bool:
         if os.name == "nt":
-            os.system("start notepad")
-            return True
+            return launch_windows_app("notepad")
 
-        print("Open notepad is only supported on Windows in this implementation.")
+        logger.info("Open notepad is only supported on Windows in this implementation.")
         return False

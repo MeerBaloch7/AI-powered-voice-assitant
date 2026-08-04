@@ -1,4 +1,4 @@
-import os
+import logging
 import struct
 import threading
 import time
@@ -10,6 +10,8 @@ from SRM import SpeechRecognitionModule
 from commands import plugins
 from config import Config
 from conversation_context import ConversationContext
+
+logger = logging.getLogger(__name__)
 
 
 class TriggerMode:
@@ -39,6 +41,8 @@ class SmartListener:
         self._porcupine = None
         self._pa = None
         self._wake_stream = None
+        self._wake_thread = None
+        self._hotkey_available = False
 
     def stop(self):
         self._running = False
@@ -53,33 +57,40 @@ class SmartListener:
         if self.trigger_mode in (TriggerMode.HOTKEY, TriggerMode.BOTH):
             self._init_hotkey()
 
-        if self.trigger_mode == TriggerMode.WAKE and self._porcupine is None:
-            print("[Error] Wake word unavailable. No trigger available. Exiting.")
+        if self._porcupine is None and not self._hotkey_available:
+            logger.error("No trigger available (wake word and hotkey both failed). Exiting.")
             return
 
-        while self._running:
-            self._wait_for_trigger()
-            if not self._running:
-                break
+        try:
+            while self._running:
+                self._wait_for_trigger()
+                if not self._running:
+                    break
 
-            self._wake_active.clear()
-            self._process_voice_command()
-            self._wake_active.set()
-
-        self._cleanup()
+                self._wake_active.clear()
+                try:
+                    self._process_voice_command()
+                except Exception as e:
+                    logger.error("Voice command processing failed: %s", e)
+                finally:
+                    self._wake_active.set()
+        finally:
+            self._cleanup()
 
     def _try_init_wake_word(self):
         try:
             import pvporcupine
             import pyaudio as pa_module
+        except ImportError:
+            logger.error("pvporcupine or pyaudio not installed. Wake word disabled.")
+            return
 
-            access_key = self.config.picovoice_access_key
-            if not access_key:
-                print("[Warning] PICOVOICE_ACCESS_KEY not set. Wake word disabled.")
-                if self.trigger_mode == TriggerMode.WAKE:
-                    return
-                print("[Info] Falling back to hotkey-only mode.")
+        access_key = self.config.picovoice_access_key
+        if not access_key:
+            logger.warning("PICOVOICE_ACCESS_KEY not set. Wake word disabled.")
+            return
 
+        try:
             self._porcupine = pvporcupine.create(
                 access_key=access_key,
                 keywords=["hey assistant"],
@@ -93,40 +104,52 @@ class SmartListener:
                 frames_per_buffer=self._porcupine.frame_length,
             )
 
-            thread = threading.Thread(target=self._wake_loop, daemon=True)
-            thread.start()
-            print("[Info] Wake word active — say 'Hey Assistant'")
-        except ImportError:
-            print("[Error] pvporcupine or pyaudio not installed.")
-            if self.trigger_mode == TriggerMode.WAKE:
-                raise
-            print("[Info] Falling back to hotkey-only mode.")
+            self._wake_thread = threading.Thread(target=self._wake_loop, daemon=True)
+            self._wake_thread.start()
+            logger.info("Wake word active — say 'Hey Assistant'")
+        except Exception as e:
+            logger.error("Failed to initialize wake word: %s", e)
+            self._wake_stream = None
+            self._porcupine = None
+            if self._pa:
+                self._pa.terminate()
+                self._pa = None
 
     def _wake_loop(self):
+        frame_length = self._porcupine.frame_length
+        fmt = "h" * frame_length
         while self._running:
             self._wake_active.wait()
             if not self._running:
                 break
 
-            pcm = self._wake_stream.read(self._porcupine.frame_length, exception_on_overflow=False)
-            pcm_array = struct.unpack_from("h" * self._porcupine.frame_length, pcm)
-            result = self._porcupine.process(pcm_array)
-            if result >= 0:
-                keyword = self._porcupine.keywords[result] if hasattr(self._porcupine, "keywords") else "wake word"
-                print(f"[Wake] {keyword}")
-                self._wake_detected.set()
+            try:
+                pcm = self._wake_stream.read(frame_length, exception_on_overflow=False)
+                if not self._wake_active.is_set():
+                    continue
+                pcm_array = struct.unpack_from(fmt, pcm)
+                result = self._porcupine.process(pcm_array)
+                if result >= 0:
+                    keyword = self._porcupine.keywords[result] if hasattr(self._porcupine, "keywords") else "wake word"
+                    logger.info("[Wake] %s", keyword)
+                    self._wake_detected.set()
+            except Exception as e:
+                if not self._running:
+                    break
+                logger.error("Wake word loop error: %s", e)
+                time.sleep(0.1)
 
     def _init_hotkey(self):
         try:
             import keyboard
             hotkey = self.config.trigger.hotkey
             keyboard.add_hotkey(hotkey, self._on_hotkey, suppress=True)
-            print(f"[Info] Hotkey active — press {hotkey} to start recording")
+            self._hotkey_available = True
+            logger.info("Hotkey active — press %s to start recording", hotkey)
         except ImportError:
-            print("[Error] keyboard module not installed.")
-            if self.trigger_mode in (TriggerMode.HOTKEY, TriggerMode.BOTH):
-                if self.trigger_mode == TriggerMode.HOTKEY:
-                    raise
+            logger.error("keyboard module not installed. Hotkey disabled.")
+        except Exception as e:
+            logger.error("Failed to register hotkey: %s", e)
 
     def _on_hotkey(self):
         self._hotkey_detected.set()
@@ -142,17 +165,20 @@ class SmartListener:
             time.sleep(0.05)
 
     def _process_voice_command(self):
+        self._wake_detected.clear()
+        self._hotkey_detected.clear()
+
         audio = self.srm.capture_audio()
         if audio is None:
-            print("[Error] Failed to capture audio from microphone.")
+            logger.error("Failed to capture audio from microphone.")
             return
 
         text = self.srm.transcribe(audio)
         if not text:
-            print("[Info] No speech recognized.")
+            logger.info("No speech recognized.")
             return
 
-        print(f"\n[Transcription] {text}")
+        logger.info("[Transcription] %s", text)
         intent = self.nlpm.recognize_intent(text, self.context)
         success = self.cem.execute(intent, text, self.context)
 
@@ -163,14 +189,26 @@ class SmartListener:
             msg = "I could not complete the command."
 
         if not self.tts.speak(msg):
-            print(f"[Text Output] {msg}")
+            logger.info("[Text Output] %s", msg)
 
-        print(f"[Result] intent={intent} success={success}")
+        logger.info("[Result] intent=%s success=%s", intent, success)
 
     def _cleanup(self):
-        if self._wake_stream:
-            self._wake_stream.close()
+        try:
+            if self._wake_stream:
+                self._wake_stream.close()
+        except Exception:
+            pass
+        self._wake_stream = None
         if self._pa:
-            self._pa.terminate()
+            try:
+                self._pa.terminate()
+            except Exception:
+                pass
+            self._pa = None
         if self._porcupine:
-            self._porcupine.delete()
+            try:
+                self._porcupine.delete()
+            except Exception:
+                pass
+            self._porcupine = None

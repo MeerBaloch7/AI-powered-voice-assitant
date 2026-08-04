@@ -1,6 +1,9 @@
+import logging
 import os
 from datetime import datetime
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class ScreenshotPlugin(BasePlugin):
@@ -21,8 +24,11 @@ class ScreenshotPlugin(BasePlugin):
 
             screenshot = pyautogui.screenshot()
             screenshot.save(path)
-            print(f"Screenshot saved to: {path}")
+            logger.info("Screenshot saved to: %s", path)
             return True
         except ImportError:
-            print("pyautogui is not installed. Run: pip install pyautogui pillow")
+            logger.error("pyautogui is not installed. Run: pip install pyautogui pillow")
+            return False
+        except Exception as e:
+            logger.error("Screenshot failed: %s", e)
             return False

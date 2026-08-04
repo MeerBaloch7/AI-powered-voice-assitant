@@ -1,7 +1,10 @@
+import logging
 import os
 import re
 
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class VolumeControlPlugin(BasePlugin):
@@ -17,24 +20,28 @@ class VolumeControlPlugin(BasePlugin):
         cmd = command.lower()
 
         if os.name != "nt":
-            print("Volume control is only supported on Windows in this implementation.")
+            logger.info("Volume control is only supported on Windows in this implementation.")
             return False
 
-        if "mute" in cmd:
-            self._set_mute(True)
-            return True
-        if "unmute" in cmd:
-            self._set_mute(False)
-            return True
+        try:
+            if "unmute" in cmd:
+                self._set_mute(False)
+                return True
+            if "mute" in cmd:
+                self._set_mute(True)
+                return True
 
-        match = re.search(r"(\d+)", cmd)
-        if match:
-            target = int(match.group(1))
-            self._set_volume(target / 100.0)
-        elif "up" in cmd or "increase" in cmd:
-            self._change_volume(+0.1)
-        elif "down" in cmd or "decrease" in cmd:
-            self._change_volume(-0.1)
+            match = re.search(r"(\d+)", cmd)
+            if match:
+                target = int(match.group(1))
+                self._set_volume(target / 100.0)
+            elif "up" in cmd or "increase" in cmd:
+                self._change_volume(+0.1)
+            elif "down" in cmd or "decrease" in cmd:
+                self._change_volume(-0.1)
+        except Exception as e:
+            logger.error("Volume control failed: %s", e)
+            return False
 
         return True
 

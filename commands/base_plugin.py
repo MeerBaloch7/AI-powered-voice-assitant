@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 class BasePlugin(ABC):
     def __init__(self):
         self.context_data: dict = {}
+        self.previous_data: dict = {}
 
     @property
     @abstractmethod

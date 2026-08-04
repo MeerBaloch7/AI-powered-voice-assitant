@@ -12,9 +12,18 @@ def main():
         default="integrated",
         help="Select application mode: voice, gui, or integrated.",
     )
+    parser.add_argument(
+        "--trigger",
+        choices=["wake", "hotkey", "both"],
+        default=None,
+        help="Override the config file trigger mode.",
+    )
     args = parser.parse_args()
 
-    subprocess.run([sys.executable, "main.py", "--mode", args.mode], check=True)
+    cmd = [sys.executable, "main.py", "--mode", args.mode]
+    if args.trigger:
+        cmd += ["--trigger", args.trigger]
+    subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":

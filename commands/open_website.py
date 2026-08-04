@@ -1,5 +1,8 @@
+import logging
 import webbrowser
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 _WEBSITES = {
     "youtube": "https://www.youtube.com",
@@ -32,7 +35,7 @@ class OpenWebsitePlugin(BasePlugin):
         for name, url in _WEBSITES.items():
             if name in cmd:
                 webbrowser.open(url)
-                print(f"Opening {name}")
+                logger.info("Opening %s", name)
                 return True
 
         return False

@@ -45,3 +45,20 @@ def test_empty_input(nlpm):
 def test_case_insensitive(nlpm):
     assert nlpm.recognize_intent("OPEN NOTEPAD") == "open_notepad"
     assert nlpm.recognize_intent("Open Notepad") == "open_notepad"
+
+
+def test_follow_up_requires_successful_last_turn(nlpm):
+    from conversation_context import ConversationContext
+    ctx = ConversationContext()
+    ctx.add_turn("set timer 5 minutes", "set_timer", False, {})
+    assert nlpm.recognize_intent("make that 10", ctx) == "unknown_command"
+
+
+def test_deterministic_longest_match(nlpm):
+    result = nlpm.recognize_intent("search for weather in London")
+    assert result == "search_google"
+
+
+def test_specific_pattern_beats_generic(nlpm):
+    result = nlpm.recognize_intent("what is the weather today")
+    assert result == "get_weather"

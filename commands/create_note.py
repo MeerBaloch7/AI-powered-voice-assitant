@@ -1,6 +1,9 @@
+import logging
 import os
 from datetime import datetime
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class CreateNotePlugin(BasePlugin):
@@ -17,13 +20,20 @@ class CreateNotePlugin(BasePlugin):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         path = os.path.join(desktop, f"note_{timestamp}.txt")
 
-        content = command
+        content = command.strip()
+        lower = content.lower()
+        for phrase in self.patterns:
+            if lower.startswith(phrase):
+                content = content[len(phrase):].strip()
+                break
+        if not content:
+            content = command.strip()
 
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-            print(f"Note saved to: {path}")
+            logger.info("Note saved to: %s", path)
             return True
         except OSError as e:
-            print(f"Failed to save note: {e}")
+            logger.error("Failed to save note: %s", e)
             return False

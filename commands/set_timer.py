@@ -1,6 +1,9 @@
+import logging
 import re
 import threading
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class SetTimerPlugin(BasePlugin):
@@ -16,22 +19,34 @@ class SetTimerPlugin(BasePlugin):
     ]
 
     _active_timer: threading.Timer | None = None
+    _next_token: int = 0
+    _lock = threading.Lock()
 
     def execute(self, command: str) -> bool:
         cmd = command.lower()
         seconds = self._parse_duration(cmd)
 
-        if seconds > 0:
-            if self._active_timer:
-                self._active_timer.cancel()
-            self._active_timer = threading.Timer(seconds, self._timer_finished)
-            self._active_timer.daemon = True
-            self._active_timer.start()
-            print(f"Timer set for {seconds} seconds.")
-            self.context_data = {"duration": seconds}
-            return True
+        if seconds == 0:
+            match = re.search(r"(\d+)", cmd)
+            prev_seconds = self.previous_data.get("duration")
+            if not match or not prev_seconds:
+                return False
+            unit = self.previous_data.get("unit", "minutes")
+            seconds = int(match.group(1)) * (60 if unit == "minutes" else 1)
 
-        return False
+        with self._lock:
+            if self._active_timer is not None:
+                self._active_timer.cancel()
+            token = self._next_token
+            self._next_token += 1
+            timer = threading.Timer(seconds, self._timer_finished, args=[token])
+            timer.daemon = True
+            timer.start()
+            self._active_timer = timer
+
+        logger.info("Timer set for %s seconds.", seconds)
+        self.context_data = {"duration": seconds, "unit": "minutes" if seconds % 60 == 0 and seconds >= 60 else "seconds"}
+        return True
 
     def _parse_duration(self, cmd: str) -> int:
         seconds = 0
@@ -43,6 +58,8 @@ class SetTimerPlugin(BasePlugin):
             seconds += int(match.group(1))
         return seconds
 
-    def _timer_finished(self):
-        print("Timer finished!")
-        self._active_timer = None
+    def _timer_finished(self, token: int):
+        logger.info("Timer finished!")
+        with self._lock:
+            if self._active_timer is not None and self._next_token - 1 == token:
+                self._active_timer = None

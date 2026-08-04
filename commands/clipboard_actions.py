@@ -1,4 +1,7 @@
+import logging
 from .base_plugin import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class ClipboardActionsPlugin(BasePlugin):
@@ -19,12 +22,12 @@ class ClipboardActionsPlugin(BasePlugin):
             if "read" in cmd or "show" in cmd or "what" in cmd:
                 content = pyperclip.paste()
                 if content:
-                    print(f"Clipboard content: {content}")
+                    logger.info("Clipboard content (%d chars): %s...", len(content), content[:40])
                 else:
-                    print("Clipboard is empty.")
+                    logger.info("Clipboard is empty.")
                 return True
 
             return False
         except ImportError:
-            print("pyperclip is not installed. Run: pip install pyperclip")
+            logger.error("pyperclip is not installed. Run: pip install pyperclip")
             return False

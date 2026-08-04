@@ -58,3 +58,48 @@ def test_partial_config_keeps_defaults(tmp_path):
     assert cfg.trigger.mode == "wake"
     assert cfg.trigger.hotkey == "ctrl+shift+v"
     assert cfg.tts.rate == 200
+
+
+def test_invalid_json_falls_back_to_defaults(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text("{invalid json", encoding="utf-8")
+
+    cfg = Config.load(str(path))
+    assert cfg.trigger.mode == "both"
+    assert cfg.picovoice_access_key == ""
+
+
+def test_extra_keys_are_ignored(tmp_path):
+    data = {
+        "trigger": {"mode": "wake", "unknown_key": 123},
+        "tts": {"rate": "150", "bogus": True},
+    }
+    path = tmp_path / "config.json"
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+    cfg = Config.load(str(path))
+    assert cfg.trigger.mode == "wake"
+    assert cfg.tts.rate == 150
+    assert cfg.tts.voice is None
+
+
+def test_invalid_trigger_mode_reset_to_both(tmp_path):
+    data = {"trigger": {"mode": "wake-mode-typo"}}
+    path = tmp_path / "config.json"
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+    cfg = Config.load(str(path))
+    assert cfg.trigger.mode == "both"
+
+
+def test_tts_values_clamped(tmp_path):
+    data = {"tts": {"rate": 99999, "volume": 5.0}}
+    path = tmp_path / "config.json"
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+    cfg = Config.load(str(path))
+    assert cfg.tts.rate == 500
+    assert cfg.tts.volume == 1.0
